@@ -8,10 +8,9 @@ import { int, euro, pad2 } from "@/lib/format";
 import type { Bottleneck, BottleneckTemplate, Profile } from "@/lib/types";
 import { BottleneckHero, KpiTiles, FunnelCard, ObjectionCard, HistoryCard } from "@/components/dashboard";
 import { ClosingChart } from "@/components/charts";
-import { PlanCalendar } from "@/components/plan-calendar";
-import { buildPlan, currentWeekIndex } from "@/lib/plan";
-import { weekStart, dayOf } from "@/lib/dates";
-import type { DrillLog } from "@/lib/types";
+import { DayPlanner } from "@/components/day-planner";
+import { loadPlanner, plannerStart } from "@/lib/planner";
+import { weekStart } from "@/lib/dates";
 import { ActionForm, ActionButton } from "@/components/action-form";
 import { CriteriaToggles, DrillEditor } from "@/components/coach-controls";
 import { IconChevronLeft } from "@/components/icons";
@@ -94,7 +93,7 @@ function ManageCard({ b, hasActive, drills, participantId }: { b: Bottleneck; ha
   );
 }
 
-export default async function ParticipantDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function ParticipantDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ woche?: string }> }) {
   const { id } = await params;
   const { supabase, user } = await requireCoach();
   const { data: raw } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle<Profile>();
@@ -117,16 +116,10 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
   ]);
   const templates = (tpl ?? []) as Pick<BottleneckTemplate, "id" | "name" | "category">[];
 
-  // Trainingskalender (letzte Wochen des aktiven Engpasses)
-  let planWeeks = null as ReturnType<typeof buildPlan> | null;
-  let planFrom = 1;
-  if (data.active && data.drills.length) {
-    const st = data.active.activated_at ? dayOf(data.active.activated_at) : null;
-    planFrom = Math.max(1, currentWeekIndex(st, today) - 2);
-    const ws = addDays(weekStart(st ?? today), (planFrom - 1) * 7);
-    const { data: l } = await supabase.from("drill_logs").select("*").in("drill_id", data.drills.map((d) => d.id)).gte("day", ws).lte("day", addDays(ws, 27));
-    planWeeks = buildPlan({ drills: data.drills, logs: (l ?? []) as DrillLog[], start: st, end: null, today, fromWeek: planFrom, weeks: 4, editable: false });
-  }
+  // Beschreibbarer Trainingskalender (Coach kann für den Teilnehmer planen)
+  const { woche } = await searchParams;
+  const planMonday = plannerStart(woche, today);
+  const dayPlan = await loadPlanner(supabase, id, planMonday);
 
   const mStart = monthStart(today);
   const month = sumEntries(inRange(data.entries, mStart, monthEnd(today)));
@@ -156,16 +149,19 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
       {data.active && <ManageCard b={data.active} hasActive={false} drills={data.drills} participantId={id} />}
       {data.proposed && <ManageCard b={data.proposed} hasActive={!!data.active} drills={proposalDrills} participantId={id} />}
 
-      {data.active && data.drills.length > 0 && planWeeks && (
-        <PlanCalendar
-          weeks={planWeeks}
-          title={`Engpass ${pad2(data.active.seq)} · ${data.active.title}`}
-          subtitle="So sieht der Trainingskalender des Teilnehmers aus. Abhaken kann nur der Teilnehmer."
-          rangeLabel={`Woche ${planFrom}–${planFrom + 3}`}
-          prevHref={null}
-          nextHref={null}
-        />
-      )}
+      <DayPlanner
+        weeks={dayPlan.weeks}
+        participantId={id}
+        today={today}
+        defaultFocus={data.active?.title ?? ""}
+        suggestions={[...new Set([data.active?.title, ...templates.map((t) => t.name)].filter((x): x is string => !!x))]}
+        prevHref={`/coach/teilnehmer/${id}?woche=${dayPlan.prev}`}
+        nextHref={`/coach/teilnehmer/${id}?woche=${dayPlan.next}`}
+        todayHref={planMonday !== weekStart(today) ? `/coach/teilnehmer/${id}` : null}
+        missingTable={dayPlan.missingTable}
+        title={`Trainingsplan von ${profile.full_name.split(" ")[0] || "Teilnehmer"}`}
+        subtitle="Du und der Teilnehmer könnt hier für jeden Tag Engpass und Training eintragen."
+      />
 
       {!data.proposed && (
         <section className="card">

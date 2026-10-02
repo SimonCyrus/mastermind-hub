@@ -150,3 +150,13 @@ export interface Comment {
   body: string;
   created_at: string;
 }
+
+export interface PlanDayEntry {
+  participant_id: string;
+  day: string;
+  focus: string;
+  method: string;
+  done: boolean;
+  updated_by: string | null;
+  updated_at: string;
+}

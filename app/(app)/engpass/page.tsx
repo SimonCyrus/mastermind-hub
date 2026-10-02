@@ -1,21 +1,18 @@
 import { requireParticipant } from "@/lib/auth";
-import { loadParticipant, loadNames, daysInBottleneck } from "@/lib/data";
+import { loadParticipant, loadNames } from "@/lib/data";
 import { objectionStats, weakestObjection, OBJECTION_TEMPLATE } from "@/lib/metrics";
-import { todayISO, addDays, dayOf, formatDayMonth, weekStart } from "@/lib/dates";
-import { buildPlan, currentWeekIndex } from "@/lib/plan";
-import { pad2 } from "@/lib/format";
-import type { BottleneckTemplate, DrillLog } from "@/lib/types";
+import { todayISO, addDays, weekStart } from "@/lib/dates";
+import { loadPlanner, plannerStart } from "@/lib/planner";
+import type { BottleneckTemplate } from "@/lib/types";
 import { BottleneckHeader, BottleneckSections, AgreementCard } from "@/components/bottleneck-detail";
 import { WorkCards } from "@/components/work-cards";
-import { PlanCalendar } from "@/components/plan-calendar";
+import { DayPlanner } from "@/components/day-planner";
 import { HistoryCard } from "@/components/dashboard";
 import { ProposeForm } from "@/components/propose-form";
 
 export const metadata = { title: "Trainingsplan" };
 
-const WINDOW = 4;
-
-export default async function EngpassPage({ searchParams }: { searchParams: Promise<{ ab?: string }> }) {
+export default async function EngpassPage({ searchParams }: { searchParams: Promise<{ woche?: string }> }) {
   const { supabase, user } = await requireParticipant();
   const today = todayISO();
   const data = await loadParticipant(supabase, user.id, today);
@@ -26,6 +23,27 @@ export default async function EngpassPage({ searchParams }: { searchParams: Prom
   const weakest = weakestObjection(stats);
   const suggestedTemplate = weakest ? templates.find((t) => t.slug === OBJECTION_TEMPLATE[weakest.type])?.id : undefined;
   const names = await loadNames(supabase, [user.id, current?.proposed_by ?? "", current?.activated_by ?? ""]);
+
+  // Beschreibbarer Trainingskalender: 4 Wochen ab ?woche=… (Standard: aktuelle Woche)
+  const { woche } = await searchParams;
+  const monday = plannerStart(woche, today);
+  const plan = await loadPlanner(supabase, user.id, monday);
+  const suggestions = [...new Set([data.active?.title, ...templates.map((t) => t.name)].filter((x): x is string => !!x))];
+  const planner = (
+    <DayPlanner
+      weeks={plan.weeks}
+      participantId={user.id}
+      today={today}
+      defaultFocus={data.active?.title ?? ""}
+      suggestions={suggestions}
+      prevHref={`/engpass?woche=${plan.prev}`}
+      nextHref={`/engpass?woche=${plan.next}`}
+      todayHref={monday !== weekStart(today) ? "/engpass" : null}
+      missingTable={plan.missingTable}
+      title="Dein Trainingsplan"
+      subtitle="Für jeden Tag: Woran arbeitest du, und wie trainierst du es?"
+    />
+  );
 
   const proposeBlock = !data.proposed && (
     <section className="card" id="vorschlagen">
@@ -50,27 +68,12 @@ export default async function EngpassPage({ searchParams }: { searchParams: Prom
           <h1 className="h1">Noch kein Engpass aktiv</h1>
           <p className="sub">Euren nächsten Engpass legt ihr im Coaching-Call gemeinsam fest. Danach siehst du hier deinen Trainingskalender.</p>
         </header>
+        {planner}
         <HistoryCard bottlenecks={data.bottlenecks} entries={data.entries} today={today} />
       </>
     );
   }
 
-  // Trainingskalender: 4 Wochen, Woche 1 = Start des Engpasses
-  const start = current.activated_at ? dayOf(current.activated_at) : null;
-  const cur = currentWeekIndex(start, today);
-  const { ab } = await searchParams;
-  const maxFrom = Math.max(1, cur - 1);
-  const requested = Number(ab);
-  const from = Number.isInteger(requested) && requested >= 1 ? Math.min(requested, maxFrom) : Math.max(1, cur - 2);
-  const windowStart = addDays(weekStart(start ?? today), (from - 1) * 7);
-  const windowEnd = addDays(windowStart, WINDOW * 7 - 1);
-  let logs: DrillLog[] = [];
-  if (data.drills.length) {
-    const { data: l } = await supabase.from("drill_logs").select("*").in("drill_id", data.drills.map((d) => d.id)).gte("day", windowStart).lte("day", windowEnd);
-    logs = (l ?? []) as DrillLog[];
-  }
-  const weeks = buildPlan({ drills: data.drills, logs, start, end: null, today, fromWeek: from, weeks: WINDOW, editable: current.status === "active" });
-  const day = daysInBottleneck(current, today);
 
   return (
     <>
@@ -86,15 +89,7 @@ export default async function EngpassPage({ searchParams }: { searchParams: Prom
 
       <WorkCards drills={data.drills} />
 
-      <PlanCalendar
-        weeks={weeks}
-        title={`Engpass ${pad2(current.seq)} · ${current.title}`}
-        subtitle={start ? `Seit ${formatDayMonth(start)} · Tag ${day} · läuft, bis er gelöst ist` : "Vorschau: Der Kalender startet, sobald ihr den Engpass gemeinsam aktiviert habt."}
-        rangeLabel={`Woche ${from}–${from + WINDOW - 1}`}
-        prevHref={from > 1 ? `/engpass?ab=${Math.max(1, from - WINDOW)}` : null}
-        nextHref={from < maxFrom ? `/engpass?ab=${Math.min(maxFrom, from + WINDOW)}` : null}
-        hint={current.status === "active" ? "Antippen zum Abhaken, auch für vergangene Tage." : undefined}
-      />
+      {planner}
 
       {proposeBlock}
       <HistoryCard bottlenecks={data.bottlenecks} entries={data.entries} today={today} />

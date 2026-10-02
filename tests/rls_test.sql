@@ -132,3 +132,22 @@ end $$;
 
 reset role;
 select 'ALLE RECHTE-TESTS BESTANDEN' as ergebnis;
+
+-- ---------------- Tagesplan ----------------
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+insert into plan_days (participant_id, day, focus, method) values ('00000000-0000-0000-0000-00000000000a', '2026-10-05', 'Menschlich', '15 Min Mimik');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin
+  assert (select count(*) from plan_days) = 0, 'B sieht A''s Tagesplan nicht';
+  begin
+    insert into plan_days (participant_id, day, focus) values ('00000000-0000-0000-0000-00000000000a', '2026-10-06', 'x');
+    raise exception 'FEHLER: B plant für A';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+insert into plan_days (participant_id, day, focus) values ('00000000-0000-0000-0000-00000000000a', '2026-10-06', 'Pain');
+do $$ begin assert (select count(*) from plan_days) = 2, 'Coach plant für A'; end $$;
+reset role;
+select 'TAGESPLAN-TESTS BESTANDEN' as ergebnis;

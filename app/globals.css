@@ -361,3 +361,34 @@ button.plan-item:hover { background: var(--fill); }
   .plan-item { font-size: 14px; min-height: 36px; align-items: center; }
   .plan-check { width: 18px; height: 18px; border-radius: 9px; }
 }
+
+/* ---------- Tagesplan (beschreibbarer Kalender) ---------- */
+.plan-week.current { background: var(--ink); }
+.plan-week.current span { color: #fff; }
+.dp-cell { position: relative; padding: 0; }
+.dp-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; padding: 10px 8px; border-radius: 12px; cursor: pointer; min-width: 0; }
+.dp-open:hover { background: var(--surface-2); }
+.dp-cell.complete .dp-open:hover { background: #dbe9fb; }
+.dp-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dp-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dp-focus { font-size: 12px; font-weight: 700; line-height: 1.25; color: var(--accent); overflow-wrap: anywhere; }
+.dp-method { font-size: 12px; line-height: 1.35; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.dp-add { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--disabled); margin-top: 2px; }
+.dp-cell.empty:hover .dp-add { color: var(--accent); }
+.dp-cell.future.filled { background: var(--surface); }
+.dp-done { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; border-radius: 9px; border: 0; padding: 0; cursor: pointer; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--disabled); display: inline-flex; align-items: center; justify-content: center; }
+.dp-done.on { background: var(--accent); box-shadow: none; }
+.dp-cell.today .plan-today { margin-right: 22px; }
+.dp-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.32); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dp-dialog { width: 100%; max-width: 520px; background: var(--surface); border-radius: 22px; padding: 26px 26px 22px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22); max-height: calc(100dvh - 32px); overflow: auto; }
+
+@media (max-width: 860px) {
+  .dp-open { flex-direction: row; align-items: flex-start; padding: 12px 40px 12px 12px; }
+  .dp-body, .dp-add { flex: 1; }
+  .dp-focus, .dp-method { font-size: 14px; }
+  .dp-done { top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 12px; }
+  .plan-cell.dp-cell { padding: 0; }
+  .plan-week.current { background: transparent; }
+  .plan-week.current span { color: var(--ink); }
+  .dp-dialog { align-self: flex-end; border-radius: 22px 22px 0 0; max-width: none; margin: -16px; width: calc(100% + 32px); }
+}

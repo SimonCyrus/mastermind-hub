@@ -223,3 +223,61 @@ export async function saveProfile(_: FormState, fd: FormData): Promise<FormState
   revalidatePath("/", "layout");
   return { ok: "Gespeichert" };
 }
+
+// ---------------------------------------------------------------------
+// Tagesplan im Trainingskalender (Teilnehmer für sich, Coach für alle)
+// ---------------------------------------------------------------------
+async function planGuard(participantId: string) {
+  const s = await requireUser();
+  if (s.profile.role !== "coach" && participantId !== s.user.id) return null;
+  return s;
+}
+
+function revalidatePlan(participantId: string) {
+  revalidatePath("/engpass");
+  revalidatePath(`/coach/teilnehmer/${participantId}`);
+}
+
+export async function savePlanDay(participantId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const s = await planGuard(participantId);
+  if (!s) return { error: "Keine Berechtigung." };
+  const day = String(fd.get("day") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { error: "Ungültiger Tag." };
+  const focus = String(fd.get("focus") ?? "").trim().slice(0, 120);
+  const method = String(fd.get("method") ?? "").trim().slice(0, 1000);
+
+  if (fd.get("clear") === "1" || (!focus && !method)) {
+    await s.supabase.from("plan_days").delete().eq("participant_id", participantId).eq("day", day);
+    revalidatePlan(participantId);
+    return { ok: "Gelöscht" };
+  }
+
+  const now = new Date().toISOString();
+  const rows: Record<string, string | boolean>[] = [
+    { participant_id: participantId, day, focus, method, done: fd.get("done") === "1", updated_by: s.user.id, updated_at: now },
+  ];
+  if (fd.get("apply_week") === "1") {
+    const [y, m, d] = day.split("-").map(Number);
+    const base = new Date(Date.UTC(y, m - 1, d));
+    const dow = (base.getUTCDay() + 6) % 7;
+    for (let i = 0; i < 5; i++) {
+      const x = new Date(base);
+      x.setUTCDate(base.getUTCDate() - dow + i);
+      const iso = x.toISOString().slice(0, 10);
+      if (iso !== day) rows.push({ participant_id: participantId, day: iso, focus, method, updated_by: s.user.id, updated_at: now });
+    }
+  }
+  // Erst der gewählte Tag (mit Erledigt-Status), dann die übrigen Tage ohne den Status anzufassen
+  const { error } = await s.supabase.from("plan_days").upsert(rows[0], { onConflict: "participant_id,day" });
+  if (!error && rows.length > 1) await s.supabase.from("plan_days").upsert(rows.slice(1), { onConflict: "participant_id,day" });
+  if (error) return { error: "Speichern hat nicht geklappt. Ist das Datenbank-Update 002 schon eingespielt?" };
+  revalidatePlan(participantId);
+  return { ok: "Gespeichert" };
+}
+
+export async function togglePlanDone(participantId: string, day: string, done: boolean) {
+  const s = await planGuard(participantId);
+  if (!s) return;
+  await s.supabase.from("plan_days").update({ done, updated_by: s.user.id, updated_at: new Date().toISOString() }).eq("participant_id", participantId).eq("day", day);
+  revalidatePlan(participantId);
+}
