@@ -90,25 +90,6 @@ export function BottleneckSections({ bottleneck, drills, logs, today, scores, in
         {drills.length === 0 ? <span className="sub">Die Drills legt ihr im nächsten Coaching-Call fest.</span> : <DrillGrid drills={drills} logs={logs} bottleneck={bottleneck} today={today} />}
       </section>
 
-      <section className="card">
-        <div className="row" style={{ alignItems: "baseline", gap: 12 }}><span className="small strong" style={{ color: "var(--faint)" }}>03</span><h2 className="h2" style={{ fontSize: 22 }}>Woran wir messen und wann er gelöst ist</h2></div>
-        <div className="grid-2" style={{ gap: 32 }}>
-          <div className="stack sm">
-            <span className="sub">{bottleneck.metric_label || "Messgröße"}{avg !== null ? ` · Ø letzte 10: ${dec1(avg)}` : ""}</span>
-            <ScoreChart scores={scores} target={target} />
-          </div>
-          <div className="stack">
-            <span className="sub">Abschlusskriterium{bottleneck.criteria?.length > 1 ? ", alle nötig" : ""}</span>
-            {(bottleneck.criteria ?? []).length === 0 && <span className="sub">Legt ihr gemeinsam fest.</span>}
-            {(bottleneck.criteria ?? []).map((c, i) => (
-              <div key={i} className="row" style={{ gap: 12, fontSize: 15 }}>
-                <span className={`check ${c.done ? "done" : "open"}`}>{c.done && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>}</span>
-                <span>{c.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </>
   );
 }

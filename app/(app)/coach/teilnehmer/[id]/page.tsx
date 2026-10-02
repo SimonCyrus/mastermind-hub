@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCoach } from "@/lib/auth";
-import { loadParticipant, loadComments, loadNames, normalizeProfile } from "@/lib/data";
+import { loadParticipant, normalizeProfile } from "@/lib/data";
 import { sumEntries, rates, inRange, weeklySeries, objectionStats, weakestObjection, scoresFor, planGoal } from "@/lib/metrics";
 import { todayISO, monthStart, monthEnd, prevMonthStart, addDays, relativeDay } from "@/lib/dates";
 import { int, euro, pad2 } from "@/lib/format";
 import type { Bottleneck, BottleneckTemplate, Profile } from "@/lib/types";
 import { BottleneckHero, KpiTiles, FunnelCard, ObjectionCard, HistoryCard } from "@/components/dashboard";
 import { ClosingChart } from "@/components/charts";
-import { DrillGrid, CommentsCard, commentViews } from "@/components/bottleneck-detail";
+import { DrillGrid } from "@/components/bottleneck-detail";
 import { ActionForm, ActionButton } from "@/components/action-form";
 import { CriteriaToggles, DrillEditor } from "@/components/coach-controls";
 import { IconChevronLeft } from "@/components/icons";
-import { addComment } from "../../../actions";
 import {
   createBottleneck,
   updateBottleneck,
@@ -109,13 +108,11 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
     proposalDrills = pd ?? [];
   }
 
-  const [{ data: tpl }, { data: note }, comments] = await Promise.all([
+  const [{ data: tpl }, { data: note }] = await Promise.all([
     supabase.from("bottleneck_templates").select("id, name, category").order("sort_order"),
     supabase.from("coach_notes").select("body").eq("participant_id", id).maybeSingle(),
-    current ? loadComments(supabase, current.id) : Promise.resolve([]),
   ]);
   const templates = (tpl ?? []) as Pick<BottleneckTemplate, "id" | "name" | "category">[];
-  const names = await loadNames(supabase, [user.id, id, ...comments.map((c) => c.author_id)]);
 
   const mStart = monthStart(today);
   const month = sumEntries(inRange(data.entries, mStart, monthEnd(today)));
@@ -195,11 +192,6 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
 
       <section className="split">
         <div className="wide">
-          {current ? (
-            <CommentsCard comments={commentViews(comments, names, user.id)} action={addComment.bind(null, current.id)} placeholder={`Nachricht an ${profile.full_name.split(" ")[0] || "den Teilnehmer"}`} />
-          ) : (
-            <section className="card"><h2 className="h3">Austausch zum Engpass</h2><span className="sub">Sobald ein Engpass angelegt ist, könnt ihr euch hier austauschen.</span></section>
-          )}
           {recentReflections.length > 0 && (
             <section className="card">
               <h2 className="h3">Letzte Reflexionen</h2>

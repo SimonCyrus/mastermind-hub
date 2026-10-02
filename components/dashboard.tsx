@@ -38,15 +38,10 @@ export function BottleneckHero({
           <h2 className="h-hero">Noch kein Engpass festgelegt</h2>
           <p className="sub" style={{ fontSize: 16 }}>
             {interactive
-              ? "Schlag deinem Coach vor, woran du als Nächstes arbeiten willst. Ihr legt ihn dann gemeinsam fest."
-              : "Leg im nächsten Call gemeinsam den ersten Engpass fest."}
+              ? "Euren nächsten Engpass legt ihr im Coaching-Call gemeinsam fest. Bis dahin: Tageszahlen tracken und Calls reflektieren."
+              : "Leg im nächsten Call gemeinsam den Engpass fest."}
           </p>
         </div>
-        {interactive && (
-          <div>
-            <Link className="btn btn-primary" href="/engpass">Engpass vorschlagen</Link>
-          </div>
-        )}
       </section>
     );
   }

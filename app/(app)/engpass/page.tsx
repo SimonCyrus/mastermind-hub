@@ -1,16 +1,17 @@
 import { requireParticipant } from "@/lib/auth";
-import { loadParticipant, loadComments, loadNames } from "@/lib/data";
+import { loadParticipant, loadNames } from "@/lib/data";
 import { scoresFor, objectionStats, weakestObjection, OBJECTION_TEMPLATE } from "@/lib/metrics";
-import { todayISO, addDays } from "@/lib/dates";
+import { todayISO, addDays, dayOf, monthStart, monthEnd } from "@/lib/dates";
 import type { BottleneckTemplate } from "@/lib/types";
-import { BottleneckHeader, BottleneckSections, AgreementCard, CommentsCard, commentViews } from "@/components/bottleneck-detail";
+import { BottleneckHeader, BottleneckSections, AgreementCard } from "@/components/bottleneck-detail";
+import { TrainingCalendar } from "@/components/training-calendar";
+import type { DrillLog } from "@/lib/types";
 import { HistoryCard } from "@/components/dashboard";
 import { ProposeForm } from "@/components/propose-form";
-import { addComment } from "../actions";
 
 export const metadata = { title: "Trainingsplan" };
 
-export default async function EngpassPage() {
+export default async function EngpassPage({ searchParams }: { searchParams: Promise<{ monat?: string }> }) {
   const { supabase, user } = await requireParticipant();
   const today = todayISO();
   const data = await loadParticipant(supabase, user.id, today);
@@ -21,8 +22,16 @@ export default async function EngpassPage() {
   const weakest = weakestObjection(stats);
   const suggestedTemplate = weakest ? templates.find((t) => t.slug === OBJECTION_TEMPLATE[weakest.type])?.id : undefined;
 
-  const comments = current ? await loadComments(supabase, current.id) : [];
-  const names = await loadNames(supabase, [user.id, current?.proposed_by ?? "", current?.activated_by ?? "", ...comments.map((c) => c.author_id)]);
+  const names = await loadNames(supabase, [user.id, current?.proposed_by ?? "", current?.activated_by ?? ""]);
+
+  // Kalender: Monat aus der Adresse (?monat=2026-09), sonst aktueller Monat
+  const { monat } = await searchParams;
+  const calMonth = monat && /^\d{4}-\d{2}$/.test(monat) && `${monat}-01` <= today ? `${monat}-01` : monthStart(today);
+  let calLogs: DrillLog[] = data.logs;
+  if (data.drills.length && calMonth < addDays(today, -30)) {
+    const { data: l } = await supabase.from("drill_logs").select("*").in("drill_id", data.drills.map((d) => d.id)).gte("day", calMonth).lte("day", monthEnd(calMonth));
+    calLogs = (l ?? []) as DrillLog[];
+  }
 
   const proposeBlock = !data.proposed && (
     <section className="card" id="vorschlagen">
@@ -60,8 +69,16 @@ export default async function EngpassPage() {
           <BottleneckSections bottleneck={current} drills={data.drills} logs={data.logs} today={today} scores={scoresFor(data.reflections, current.id)} interactive objections={stats} />
         </div>
         <aside className="narrow">
+          <TrainingCalendar
+            month={calMonth}
+            today={today}
+            drills={data.drills}
+            logs={calLogs}
+            start={current.activated_at ? dayOf(current.activated_at) : null}
+            end={current.solved_at ? dayOf(current.solved_at) : null}
+            hrefFor={(m) => `/engpass?monat=${m}`}
+          />
           <AgreementCard bottleneck={current} names={names} />
-          <CommentsCard comments={commentViews(comments, names, user.id)} action={addComment.bind(null, current.id)} placeholder="Nachricht an deinen Coach" />
         </aside>
       </div>
       {proposeBlock}

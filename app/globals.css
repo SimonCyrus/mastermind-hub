@@ -287,3 +287,23 @@ a.trow:hover { background: var(--surface-2); }
   .skill-row .opts { width: 100%; }
   .skill-row .opts button { flex: 1; }
 }
+
+/* ---------- Trainingskalender ---------- */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px 4px; }
+.cal-wd { font-size: 11px; font-weight: 600; color: var(--faint); text-align: center; padding-bottom: 2px; }
+.cal-day { position: relative; aspect-ratio: 1; max-width: 40px; width: 100%; justify-self: center; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--text); }
+.cal-day.future { color: var(--disabled); }
+.cal-day.miss { color: var(--faint); }
+.cal-day.part { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.cal-day.full { background: var(--accent); color: #fff; font-weight: 600; }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.cal-day.today.full, .cal-day.today.part { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink); }
+.cal-start { position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: var(--warn); }
+.cal-day.full .cal-start { background: #fff; }
+.cal-key { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+.cal-key.full { background: var(--accent); }
+.cal-key.part { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #c9ddf6; }
+.cal-key.start { width: 6px; height: 6px; background: var(--warn); }
+.cal-nav { width: 30px; height: 30px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; background: var(--fill); color: var(--text); }
+.cal-nav:hover { background: var(--fill-2); color: var(--text); }
+.cal-nav.off { opacity: 0.35; }

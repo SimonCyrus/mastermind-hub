@@ -12,18 +12,6 @@ const ROLES: [SalesRole, string, string][] = [
   ["both", "Beides", "Termine legen und selbst closen"],
 ];
 
-// Reihenfolge = Gesprächsverlauf. Bei Gleichstand gewinnt der frühere Punkt.
-const SKILLS: { key: string; label: string; slug: string; name: string; roles: SalesRole[] }[] = [
-  { key: "showup", label: "Leads zum Call bringen (Showup)", slug: "showup", name: "Showup-Rate erhöhen", roles: ["setter", "both"] },
-  { key: "skript", label: "Skript sicher beherrschen", slug: "skript", name: "Skript verinnerlichen", roles: ["setter", "closer", "both"] },
-  { key: "ton", label: "Tonalität und Stimme", slug: "tonalitaet", name: "Tonalität", roles: ["setter", "closer", "both"] },
-  { key: "mensch", label: "Menschlich und nahbar wirken", slug: "menschlich", name: "Menschlich rüberkommen", roles: ["setter", "closer", "both"] },
-  { key: "frame", label: "Das Gespräch führen", slug: "frame", name: "Frame-Kontrolle", roles: ["closer", "both"] },
-  { key: "pain", label: "Tief in den Pain gehen", slug: "pain", name: "Tiefer in den Pain", roles: ["closer", "both"] },
-  { key: "close", label: "Closing-Frage klar stellen", slug: "closing-frage", name: "Closing-Frage klar stellen", roles: ["closer", "both"] },
-  { key: "einwand", label: "Einwände lösen", slug: "einwand-geld", name: "Einwand „Geld“ lösen", roles: ["closer", "both"] },
-];
-
 const fmt = (n: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(Math.round(n));
 const num = (s: string) => {
   const n = Number(s.replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, ""));
@@ -34,18 +22,13 @@ export function OnboardingWizard({ firstName, coachName }: { firstName: string; 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState<SalesRole>("both");
   const [g, setG] = useState({ goal: "10.000", pct: "10", avg: "2.800", show: "80", close: "30" });
-  const [ratings, setRatings] = useState<Record<string, number>>({});
   const [pending, startTransition] = useTransition();
 
   const plan = useMemo(
     () => planGoal({ commissionGoal: num(g.goal), commissionPct: num(g.pct), avgCashPerSale: num(g.avg), showupPct: num(g.show), closePct: num(g.close) }),
     [g]
   );
-  const skills = SKILLS.filter((s) => s.roles.includes(role));
-  const allRated = skills.every((s) => ratings[s.key]);
-  const weakest = skills.reduce<(typeof SKILLS)[number] | null>((w, s) => (!ratings[s.key] ? w : !w || ratings[s.key] < ratings[w.key] ? s : w), null);
-
-  const canNext = step === 0 ? !!role : step === 1 ? num(g.goal) > 0 && num(g.pct) > 0 : step === 2 ? allRated : true;
+  const canFinish = num(g.goal) > 0 && num(g.pct) > 0;
 
   const finish = () => {
     const fd = new FormData();
@@ -55,11 +38,6 @@ export function OnboardingWizard({ firstName, coachName }: { firstName: string; 
     fd.set("avg_cash_per_sale", String(num(g.avg)));
     fd.set("assumed_showup_pct", String(num(g.show)));
     fd.set("assumed_close_pct", String(num(g.close)));
-    fd.set("self_check", JSON.stringify(ratings));
-    if (weakest) {
-      fd.set("suggestion_slug", weakest.slug);
-      fd.set("suggestion_why", `Im Selbstcheck beim Start am niedrigsten eingeschätzt: „${weakest.label}“ mit ${ratings[weakest.key]} von 5.`);
-    }
     startTransition(() => completeOnboarding(fd));
   };
 
@@ -76,8 +54,8 @@ export function OnboardingWizard({ firstName, coachName }: { firstName: string; 
       <header className="ob-top">
         <Brand />
         <div className="row" style={{ gap: 14 }}>
-          <span className="small strong muted">Schritt {step + 1} von 4</span>
-          <div className="progress hide-mobile"><div style={{ width: `${(step + 1) * 25}%` }} /></div>
+          <span className="small strong muted">Schritt {step + 1} von 2</span>
+          <div className="progress hide-mobile"><div style={{ width: `${(step + 1) * 50}%` }} /></div>
         </div>
       </header>
       <div className="ob-body">
@@ -86,8 +64,8 @@ export function OnboardingWizard({ firstName, coachName }: { firstName: string; 
             <>
               <div className="stack">
                 <span className="eyebrow">Willkommen im Mastermind{firstName ? `, ${firstName}` : ""}</span>
-                <h1 className="h-hero" style={{ fontSize: 48 }}>In drei Minuten steht dein Trainingsplan.</h1>
-                <p className="sub" style={{ fontSize: 18, lineHeight: 1.5 }}>Wir rechnen aus, was du für dein Ziel brauchst, finden deinen ersten Engpass und legen ihn dann im ersten Call gemeinsam fest.</p>
+                <h1 className="h-hero" style={{ fontSize: 48 }}>In zwei Minuten bist du startklar.</h1>
+                <p className="sub" style={{ fontSize: 18, lineHeight: 1.5 }}>Wir rechnen aus, was du für dein Ziel brauchst. Deinen ersten Engpass legen wir dann im ersten Coaching-Call gemeinsam fest.</p>
               </div>
               <div className="stack">
                 <span className="strong">Was machst du im Vertrieb?</span>
@@ -136,59 +114,20 @@ export function OnboardingWizard({ firstName, coachName }: { firstName: string; 
                   </div>
                 ))}
               </div>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <div className="stack">
-                <span className="eyebrow">Selbstcheck</span>
-                <h1 className="h1" style={{ fontSize: 40 }}>Wo stehst du gerade, ehrlich?</h1>
-                <p className="sub" style={{ fontSize: 17 }}>1 = große Baustelle, 5 = sitzt. Das sehen nur du und dein Coach.</p>
-              </div>
-              <div className="list-card" style={{ padding: "6px 0" }}>
-                {skills.map((s) => (
-                  <div key={s.key} className="skill-row" role="radiogroup" aria-label={s.label}>
-                    <span style={{ flex: 1, fontSize: 16 }}>{s.label}</span>
-                    <div className="opts">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button key={n} type="button" role="radio" aria-checked={ratings[s.key] === n} aria-label={`${s.label}: ${n} von 5`} className={ratings[s.key] === n ? "on" : undefined} onClick={() => setRatings((r) => ({ ...r, [s.key]: n }))}>{n}</button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {step === 3 && weakest && (
-            <>
-              <div className="stack">
-                <span className="eyebrow">Dein erster Engpass · Vorschlag</span>
-                <h1 className="h-hero" style={{ fontSize: 56 }}>{weakest.name}</h1>
-                <p style={{ fontSize: 18, lineHeight: 1.5, color: "var(--text-2)" }}>
-                  Du hast dich bei „{weakest.label}“ mit {ratings[weakest.key]} von 5 am niedrigsten eingeschätzt. Bei Gleichstand nehmen wir den Punkt, der früher im Gespräch kommt, denn alles danach baut darauf auf.
-                </p>
-              </div>
-              <div className="grid-3" style={{ gap: 12 }}>
-                <div className="card tight"><span className="label">Monatsziel</span><span style={{ fontSize: 24, fontWeight: 700 }}>{g.goal} €</span></div>
-                <div className="card tight"><span className="label">Calls im Kalender / Woche</span><span style={{ fontSize: 24, fontWeight: 700 }}>{fmt(Math.ceil(plan.perWeek.callsBooked))}</span></div>
-                <div className="card tight"><span className="label">Sales / Woche</span><span style={{ fontSize: 24, fontWeight: 700 }}>{fmt(Math.ceil(plan.perWeek.sales))}</span></div>
-              </div>
               <div className="callout blue" style={{ justifyContent: "flex-start" }}>
-                <span>Das ist ein Vorschlag. Im ersten Coaching-Call schaut sich {coachName || "dein Coach"} eine Aufnahme an, ihr legt den Engpass gemeinsam fest und stellt die Drills zusammen.</span>
+                <span>Deinen ersten Engpass legst du mit {coachName || "deinem Coach"} im ersten Coaching-Call gemeinsam fest. Bis dahin kannst du schon deine Tageszahlen tracken.</span>
               </div>
             </>
           )}
 
           <div className="row between" style={{ paddingTop: 8 }}>
             {step > 0 ? <button type="button" className="btn btn-soft" onClick={() => setStep(step - 1)}>Zurück</button> : <span />}
-            {step < 3 ? (
-              <button type="button" className="btn btn-primary" style={{ height: 48, padding: "0 28px", borderRadius: 24 }} disabled={!canNext} onClick={() => setStep(step + 1)}>
-                {step === 2 && !allRated ? "Bitte alles bewerten" : "Weiter"}
+            {step === 0 ? (
+              <button type="button" className="btn btn-primary" style={{ height: 48, padding: "0 28px", borderRadius: 24 }} onClick={() => setStep(1)}>
+                Weiter
               </button>
             ) : (
-              <button type="button" className="btn btn-primary" style={{ height: 48, padding: "0 28px", borderRadius: 24 }} disabled={pending} onClick={finish}>
+              <button type="button" className="btn btn-primary" style={{ height: 48, padding: "0 28px", borderRadius: 24 }} disabled={pending || !canFinish} onClick={finish}>
                 {pending ? "Wird eingerichtet …" : "Los geht’s"}
               </button>
             )}
