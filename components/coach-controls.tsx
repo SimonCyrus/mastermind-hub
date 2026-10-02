@@ -48,7 +48,7 @@ function DrillRow({ bottleneckId, participantId, drill }: { bottleneckId: string
         <input className="input" name="description" defaultValue={drill?.description} placeholder="Wie genau?" aria-label="Beschreibung" />
       </div>
       <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-        <input className="input" name="cadence" defaultValue={drill?.cadence} placeholder="Rhythmus, z. B. Täglich" aria-label="Rhythmus" style={{ width: 200 }} />
+        <input className="input" name="cadence" defaultValue={drill?.cadence} placeholder="Rhythmus, z. B. Täglich oder Mo, Mi, Fr" aria-label="Rhythmus" title="Bestimmt, an welchen Tagen der Drill im Kalender steht: Täglich, werktags, Mo, Mi, Fr, 2× pro Woche, Einmalig" style={{ width: 260 }} />
         <input className="input" name="duration" defaultValue={drill?.duration} placeholder="Dauer, z. B. 15 Min" aria-label="Dauer" style={{ width: 150 }} />
         <button className={drill ? "btn btn-soft btn-sm" : "btn btn-dark btn-sm"} type="submit" disabled={pending}>{drill ? "Speichern" : "Drill hinzufügen"}</button>
         {drill && (

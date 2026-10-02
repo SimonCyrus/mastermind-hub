@@ -8,7 +8,10 @@ import { int, euro, pad2 } from "@/lib/format";
 import type { Bottleneck, BottleneckTemplate, Profile } from "@/lib/types";
 import { BottleneckHero, KpiTiles, FunnelCard, ObjectionCard, HistoryCard } from "@/components/dashboard";
 import { ClosingChart } from "@/components/charts";
-import { DrillGrid } from "@/components/bottleneck-detail";
+import { PlanCalendar } from "@/components/plan-calendar";
+import { buildPlan, currentWeekIndex } from "@/lib/plan";
+import { weekStart, dayOf } from "@/lib/dates";
+import type { DrillLog } from "@/lib/types";
 import { ActionForm, ActionButton } from "@/components/action-form";
 import { CriteriaToggles, DrillEditor } from "@/components/coach-controls";
 import { IconChevronLeft } from "@/components/icons";
@@ -114,6 +117,17 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
   ]);
   const templates = (tpl ?? []) as Pick<BottleneckTemplate, "id" | "name" | "category">[];
 
+  // Trainingskalender (letzte Wochen des aktiven Engpasses)
+  let planWeeks = null as ReturnType<typeof buildPlan> | null;
+  let planFrom = 1;
+  if (data.active && data.drills.length) {
+    const st = data.active.activated_at ? dayOf(data.active.activated_at) : null;
+    planFrom = Math.max(1, currentWeekIndex(st, today) - 2);
+    const ws = addDays(weekStart(st ?? today), (planFrom - 1) * 7);
+    const { data: l } = await supabase.from("drill_logs").select("*").in("drill_id", data.drills.map((d) => d.id)).gte("day", ws).lte("day", addDays(ws, 27));
+    planWeeks = buildPlan({ drills: data.drills, logs: (l ?? []) as DrillLog[], start: st, end: null, today, fromWeek: planFrom, weeks: 4, editable: false });
+  }
+
   const mStart = monthStart(today);
   const month = sumEntries(inRange(data.entries, mStart, monthEnd(today)));
   const prev = sumEntries(inRange(data.entries, prevMonthStart(today), addDays(mStart, -1)));
@@ -142,11 +156,15 @@ export default async function ParticipantDetail({ params }: { params: Promise<{ 
       {data.active && <ManageCard b={data.active} hasActive={false} drills={data.drills} participantId={id} />}
       {data.proposed && <ManageCard b={data.proposed} hasActive={!!data.active} drills={proposalDrills} participantId={id} />}
 
-      {data.active && data.drills.length > 0 && (
-        <section className="card">
-          <h2 className="h2">Drills der letzten 7 Tage</h2>
-          <DrillGrid drills={data.drills} logs={data.logs} bottleneck={data.active} today={today} />
-        </section>
+      {data.active && data.drills.length > 0 && planWeeks && (
+        <PlanCalendar
+          weeks={planWeeks}
+          title={`Engpass ${pad2(data.active.seq)} · ${data.active.title}`}
+          subtitle="So sieht der Trainingskalender des Teilnehmers aus. Abhaken kann nur der Teilnehmer."
+          rangeLabel={`Woche ${planFrom}–${planFrom + 3}`}
+          prevHref={null}
+          nextHref={null}
+        />
       )}
 
       {!data.proposed && (

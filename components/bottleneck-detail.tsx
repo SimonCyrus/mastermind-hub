@@ -44,7 +44,8 @@ export function DrillGrid({ drills, logs, bottleneck, today }: { drills: Drill[]
   );
 }
 
-export function BottleneckSections({ bottleneck, drills, logs, today, scores, interactive, objections }: {
+export function BottleneckSections({ bottleneck, drills, logs, today, scores, interactive, objections, whyOnly = false }: {
+  whyOnly?: boolean;
   bottleneck: Bottleneck;
   drills: Drill[];
   logs: DrillLog[];
@@ -76,6 +77,7 @@ export function BottleneckSections({ bottleneck, drills, logs, today, scores, in
         )}
       </section>
 
+      {!whyOnly && (<>
       <section className="card">
         <div className="row" style={{ alignItems: "baseline", gap: 12 }}><span className="small strong" style={{ color: "var(--faint)" }}>02</span><h2 className="h2" style={{ fontSize: 22 }}>So trainierst du</h2></div>
         {interactive && bottleneck.status === "active" && drills.length > 0 && (
@@ -90,6 +92,7 @@ export function BottleneckSections({ bottleneck, drills, logs, today, scores, in
         {drills.length === 0 ? <span className="sub">Die Drills legt ihr im nächsten Coaching-Call fest.</span> : <DrillGrid drills={drills} logs={logs} bottleneck={bottleneck} today={today} />}
       </section>
 
+      </>)}
     </>
   );
 }
